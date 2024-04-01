@@ -61,8 +61,8 @@ def write_filtered_vcf(filtered_vcf_records, output_file):
 
 def main():
     bed_file = r'C:/Users/GenepoweRx_Madhu/Downloads/BED_files/srinivas_sir_covered.bed'
-    vcf_file = r'C:/Users/GenepoweRx_Madhu/Downloads/vcf_files_all/KHGLBS653_final.vcf'
-    output_file = r'C:/Users/GenepoweRx_Madhu/Downloads/COVERED_VCF_FILES_BED/KHGLBS653_final.vcf'
+    vcf_file = r'C:/Users/GenepoweRx_Madhu/Downloads/vcf_files_all/KHGLBS665_final.vcf'
+    output_file = r'C:/Users/GenepoweRx_Madhu/Downloads/COVERED_VCF_FILES_BED/KHGLBS665_final.vcf'
 
     bed_positions = read_bed_file(bed_file)
     filtered_vcf_records = filter_vcf_file(vcf_file, bed_positions)
@@ -75,7 +75,7 @@ print("Covered/Not_Covered completed")
 
 ########################################### IMPORTING THE VCF DATA AND EXPANDING THE DEPTH COLUMNS ##########################
 
-vcf = pd.read_csv(r'C:/Users/GenepoweRx_Madhu/Downloads/COVERED_VCF_FILES_BED/KHGLBS653_final.vcf', comment= '#', sep = '\t', header=None, low_memory=False)
+vcf = pd.read_csv(r'C:/Users/GenepoweRx_Madhu/Downloads/COVERED_VCF_FILES_BED/KHGLBS665_final.vcf', comment= '#', sep = '\t', header=None, low_memory=False)
 vcf.columns = ['CHROM', 'POS', 'rsID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'SAMPLE']
 
 sample_cols = vcf['SAMPLE'].str.split(':', expand=True)
@@ -307,7 +307,7 @@ new_sheet_data = new_sheet_data.drop_duplicates('rsID')
 new_sheet_data.reset_index(drop=True, inplace=True)
 
 # Select only 'rsID' and 'ClinVar_CLNSIG' columns
-new_sheet_data = new_sheet_data[['Gene Name', 'Gene_Score', 'Zygosity', 'ClinVar_CLNSIG','Consequence', 'Condition', 
+new_sheet_data = new_sheet_data[['Gene Name', 'Gene', 'Gene_Score', 'Zygosity', 'ClinVar_CLNDN', 'ClinVar_CLNSIG','Consequence', 'Condition', 
                                  'Consequence_score', 'IMPACT', 'IMPACT_score', 'CHROM', 'POS','rsID','Literature', 'REF', 'ALT']]
 # Replace empty strings in 'ClinVar_CLNSIG' column with 0
 new_sheet_data['ClinVar_CLNSIG'].replace('', 0, inplace=True)
@@ -319,9 +319,6 @@ rows_pathogenic_new['ClinVar_CLNSIG'] = rows_pathogenic_new['ClinVar_CLNSIG'].st
 rows_pathogenic_new = rows_pathogenic_new.explode('ClinVar_CLNSIG')
 rows_pathogenic_new['ClinVar_CLNSIG'] = rows_pathogenic_new['ClinVar_CLNSIG'].str.split(',')
 rows_pathogenic_new = rows_pathogenic_new.explode('ClinVar_CLNSIG')
-rows_pathogenic_new['ClinVar_CLNSIG'] = rows_pathogenic_new['ClinVar_CLNSIG'].str.split('&')
-rows_pathogenic_new = rows_pathogenic_new.explode('ClinVar_CLNSIG')
-
 df_pathogenic = rows_pathogenic_new[rows_pathogenic_new['ClinVar_CLNSIG'].isin(['Pathogenic', 'Likely pathogenic', 'risk factor', 'Pathogenic/Likely_pathogenic', 'Likely_pathogenic', 'Likely_pathogenic/Pathogenic', 'Pathogenic/Likely pathogenic', 'Likely pathogenic/Pathogenic'])]
 
 # Filter rows based on specified values in 'ClinVar_CLNSIG' column
@@ -329,15 +326,27 @@ df_pathogenic = rows_pathogenic_new[rows_pathogenic_new['ClinVar_CLNSIG'].isin([
 # Define the custom sort order
 
 # Group by ClinVar_CLNSIG and join the rows with comma separation
-df_pathogenic = df_pathogenic.groupby(["Gene Name", "Gene_Score", "Zygosity", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"])['ClinVar_CLNSIG'].apply(lambda x: ', '.join(x)).reset_index()
+df_pathogenic = df_pathogenic.groupby(["Gene Name", "Gene", "Gene_Score", "Zygosity", "ClinVar_CLNDN", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"])['ClinVar_CLNSIG'].apply(lambda x: ', '.join(x)).reset_index()
 # Print the resulting DataFrame
-df_pathogenic = df_pathogenic[["Gene Name", "Gene_Score", "Zygosity", "ClinVar_CLNSIG", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"]]
+df_pathogenic = df_pathogenic[["Gene Name", "Gene", "Gene_Score", "Zygosity", "ClinVar_CLNDN", "ClinVar_CLNSIG", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"]]
+
+df_gene_new = pd.read_excel(r'C:/Users/GenepoweRx_Madhu/Downloads/condition_specific/Condition_specific_all_lit_genes/Final_lit/last_conditions/genes/Clinical_classification_sheet.xlsx')
+
+df_pathogenic = pd.merge(df_pathogenic, df_gene_new, on = 'Gene', how = 'left', sort = False)
+
+df_pathogenic = df_pathogenic[["Gene Name", "Gene_Score", "Zygosity", "ClinVar_CLNDN", "Clinical_consequence", "ClinVar_CLNSIG", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"]]
+
 
 df_conflicting = rows_pathogenic_new[rows_pathogenic_new['ClinVar_CLNSIG'].isin(['Conflicting classifications of pathogenicity', 'Uncertain significance', 'Affects', 'Uncertain risk allele,risk factor'])]
 
-df_conflicting = df_conflicting.groupby(["Gene Name", "Gene_Score", "Zygosity", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"])['ClinVar_CLNSIG'].apply(lambda x: ', '.join(x)).reset_index()
+df_conflicting = df_conflicting.groupby(["Gene Name", "Gene", "Gene_Score", "Zygosity", "ClinVar_CLNDN", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"])['ClinVar_CLNSIG'].apply(lambda x: ', '.join(x)).reset_index()
 # Print the resulting DataFrame
-df_conflicting = df_conflicting[["Gene Name", "Gene_Score", "Zygosity", "ClinVar_CLNSIG", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"]]
+df_conflicting = df_conflicting[["Gene Name", "Gene", "Gene_Score", "Zygosity", "ClinVar_CLNDN", "ClinVar_CLNSIG", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"]]
+
+df_conflicting = pd.merge(df_conflicting, df_gene_new, on = 'Gene', how = 'left', sort = False)
+
+df_conflicting = df_conflicting[["Gene Name", "Gene_Score", "Zygosity", "ClinVar_CLNDN", "Clinical_consequence", "ClinVar_CLNSIG", "Consequence", "Condition", "Consequence_score", "IMPACT", "IMPACT_score", "CHROM", "POS", "rsID", "Literature", "REF", "ALT"]]
+
 
 #merged_3.to_excel(r'C:/Users/GenepoweRx_Madhu/Documents/Processed_vcf_files/Gene_scores_KHAIGHGPTTL265_depth_vcf_processed.xlsx', index=False)
 
@@ -390,9 +399,11 @@ result_df.reset_index(drop=True, inplace=True)
                                   
 ########################################################################################################################
 
+result_df = pd.merge(result_df, df_gene_new, on = 'Gene', how = 'left', sort = False)
+
 drop_duplicates_filter = result_df.copy()
 
-drop_duplicates_filter = drop_duplicates_filter.set_index(['Gene Name', 'Gene', 'Gene_Score', 'rsID', 'Literature', 'CHROM', 'POS', 'REF',
+drop_duplicates_filter = drop_duplicates_filter.set_index(['Gene Name', 'Gene', 'Gene_Score', 'Clinical_consequence', 'rsID', 'Literature', 'CHROM', 'POS', 'REF',
        'ALT', 'Zygosity', 'Consequence', 'Consequence_score', 'IMPACT',
        'IMPACT_score', 'ClinVar_CLNDN', 'CLIN_SIG', 'ClinVar_CLNREVSTAT','ClinVar_CLNSIG',
        'ClinVar', 'HGVSc', 'HGVSc (Transcript)', 'HGVSp', 'HGVSp (Transcript)',
@@ -449,7 +460,7 @@ conditions_list = [
 ######################################################################################################################
 
 # Create an Excel writer object
-excel_writer = pd.ExcelWriter(r'C:/Users/GenepoweRx_Madhu/OneDrive/Documents/Processed_vcf_files/KHGLBS653_final_output.xlsx', engine='xlsxwriter')
+excel_writer = pd.ExcelWriter(r'C:/Users/GenepoweRx_Madhu/OneDrive/Documents/Processed_vcf_files/KHGLBS665_final_new_output.xlsx', engine='xlsxwriter')
 
 # Define a workbook
 workbook = excel_writer.book
@@ -480,7 +491,7 @@ for condition in conditions_list:
         # Delete the '21_Conditions_list' column
         group_sorted = group_sorted.drop(columns=['21_Conditions_list', 'Gene Name'])
 
-        columns_to_keep = ['Condition', 'Headings', 'Gene', 'Gene_Score', 'Zygosity', 'ClinVar_CLNSIG','Consequence', 'Consequence_score', 'IMPACT', 'IMPACT_score', 'CHROM', 'POS','rsID','Literature', 'REF', 'ALT']
+        columns_to_keep = ['Condition', 'Headings', 'Gene', 'Gene_Score', 'Zygosity', 'ClinVar_CLNDN', 'Clinical_consequence', 'ClinVar_CLNSIG','Consequence', 'Consequence_score', 'IMPACT', 'IMPACT_score', 'CHROM', 'POS','rsID','Literature', 'REF', 'ALT']
 
         # Select only the desired columns
         group_sorted = group_sorted[columns_to_keep]
